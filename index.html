@@ -192,7 +192,7 @@
       <div style="overflow-x:auto">
         <table id="pgSummary">
           <thead>
-            <tr><th class="l">PG</th><th>Total I</th><th>Total D</th><th>Rappel</th><th>Custo</th><th>Mg I</th><th>Mg D</th><th>Mg R</th></tr>
+            <tr><th class="l">PG</th><th>PVP</th><th>Total I</th><th>Total D</th><th>Rappel</th><th>Custo</th><th>Mg I</th><th>Mg D</th><th>Mg R</th></tr>
           </thead>
           <tbody id="pgRows"></tbody>
           <tfoot id="pgFoot"></tfoot>
@@ -294,12 +294,12 @@ function mClass(m){if(m==null)return"";if(m>=0.30)return"good";if(m>=0.15)return
 
 function render(){
   const tb=$("#rows");tb.innerHTML="";
-  let T={totI:0,totD:0,rappel:0,custoTot:0},pgAgg={},nFound=0;
+  let T={pvpTot:0,totI:0,totD:0,rappel:0,custoTot:0},pgAgg={},nFound=0;
   rows.forEach((r,i)=>{
     const res=calcRow(r),found=res.found;
-    if(found){nFound++;T.totI+=res.totI;T.totD+=res.totD;T.rappel+=res.rappel;T.custoTot+=res.custoTot;
-      const a=pgAgg[res.pg]||(pgAgg[res.pg]={totI:0,totD:0,rappel:0,custoTot:0});
-      a.totI+=res.totI;a.totD+=res.totD;a.rappel+=res.rappel;a.custoTot+=res.custoTot;}
+    if(found){nFound++;T.pvpTot+=res.pvp*res.qtd;T.totI+=res.totI;T.totD+=res.totD;T.rappel+=res.rappel;T.custoTot+=res.custoTot;
+      const a=pgAgg[res.pg]||(pgAgg[res.pg]={pvpTot:0,totI:0,totD:0,rappel:0,custoTot:0});
+      a.pvpTot+=res.pvp*res.qtd;a.totI+=res.totI;a.totD+=res.totD;a.rappel+=res.rappel;a.custoTot+=res.custoTot;}
     const tr=document.createElement("tr");tr.className="row"+(r.artigo&&!found?" notfound":"");
     tr.innerHTML=`
       <td class="l artigo"><input value="${r.artigo||""}" data-i="${i}" data-f="artigo" placeholder="ex: A1520KIWW"></td>
@@ -324,11 +324,11 @@ function render(){
      <td><span class="m ${mClass(mI)}">${pct(mI)}</span></td><td><span class="m ${mClass(mD)}">${pct(mD)}</span></td><td><span class="m ${mClass(mR)}">${pct(mR)}</span></td><td></td></tr>`;
   $("#rowCount").textContent=`${nFound} artigo${nFound!==1?"s":""}`;
   $("#kpis").innerHTML=`
+    <div class="kpi"><span>Total PVP</span><b>${eur(T.pvpTot)||"0,00 €"}</b></div>
     <div class="kpi"><span>Total Instalador</span><b>${eur(T.totI)||"0,00 €"}</b></div>
     <div class="kpi"><span>Total Distribuidor</span><b>${eur(T.totD)||"0,00 €"}</b></div>
     <div class="kpi"><span>Total Rappel</span><b>${eur(T.rappel)||"0,00 €"}</b></div>
     <div class="kpi"><span>Custo total</span><b>${eur(T.custoTot)||"0,00 €"}</b></div>
-    <div class="kpi mg"><span>Margem Instalador</span><b><span class="m ${mClass(mI)}">${pct(mI)||"—"}</span></b></div>
     <div class="kpi mg"><span>Margem Distribuidor</span><b><span class="m ${mClass(mD)}">${pct(mD)||"—"}</span></b></div>`;
   renderPg(pgAgg,T);
 }
@@ -337,14 +337,14 @@ function renderPg(pgAgg,T){
   const order=["01","03","04","06","09","12","16","19","28","29","40","45"];
   const keys=order.filter(k=>pgAgg[k]).concat(Object.keys(pgAgg).filter(k=>!order.includes(k)));
   const body=$("#pgRows");body.innerHTML="";
-  if(!keys.length) body.innerHTML=`<tr><td class="l muted" colspan="8" style="padding:18px">Sem artigos.</td></tr>`;
+  if(!keys.length) body.innerHTML=`<tr><td class="l muted" colspan="9" style="padding:18px">Sem artigos.</td></tr>`;
   keys.forEach(k=>{const a=pgAgg[k];
     const mI=a.totI?(a.totI-a.custoTot)/a.totI:null,mD=a.totD?(a.totD-a.custoTot)/a.totD:null,mR=a.rappel?(a.rappel-a.custoTot)/a.rappel:null;
     body.insertAdjacentHTML("beforeend",`<tr><td class="l"><span class="pg-badge">${k}</span></td>
-      <td>${eur(a.totI)}</td><td>${eur(a.totD)}</td><td>${eur(a.rappel)}</td><td>${eur(a.custoTot)}</td>
+      <td>${eur(a.pvpTot)}</td><td>${eur(a.totI)}</td><td>${eur(a.totD)}</td><td>${eur(a.rappel)}</td><td>${eur(a.custoTot)}</td>
       <td><span class="m ${mClass(mI)}">${pct(mI)}</span></td><td><span class="m ${mClass(mD)}">${pct(mD)}</span></td><td><span class="m ${mClass(mR)}">${pct(mR)}</span></td></tr>`);});
   const mI=T.totI?(T.totI-T.custoTot)/T.totI:null,mD=T.totD?(T.totD-T.custoTot)/T.totD:null,mR=T.rappel?(T.rappel-T.custoTot)/T.rappel:null;
-  $("#pgFoot").innerHTML=keys.length?`<tr><td class="l">TOTAL</td><td>${eur(T.totI)}</td><td>${eur(T.totD)}</td><td>${eur(T.rappel)}</td><td>${eur(T.custoTot)}</td>
+  $("#pgFoot").innerHTML=keys.length?`<tr><td class="l">TOTAL</td><td>${eur(T.pvpTot)}</td><td>${eur(T.totI)}</td><td>${eur(T.totD)}</td><td>${eur(T.rappel)}</td><td>${eur(T.custoTot)}</td>
      <td><span class="m ${mClass(mI)}">${pct(mI)}</span></td><td><span class="m ${mClass(mD)}">${pct(mD)}</span></td><td><span class="m ${mClass(mR)}">${pct(mR)}</span></td></tr>`:"";
   $("#pgPillMode").textContent=MODE;
 }
