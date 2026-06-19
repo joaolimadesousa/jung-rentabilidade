@@ -1,0 +1,5 @@
+# Ficheiro fonte Excel (não necessário no site)
+*.xlsx
+.DS_Store
+node_modules/
+.vercel

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JUNG · Mapa de Rentabilidade</title>
+<style>
+  :root{
+    --jung:#cc0000; --jung-dark:#a30000; --ink:#1a1a1a; --muted:#6b7280;
+    --line:#e5e7eb; --bg:#f7f7f8; --card:#ffffff; --good:#16a34a; --warn:#d97706; --bad:#dc2626;
+    --head:#222;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:var(--ink);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:14px;
+         position:sticky;top:0;z-index:20}
+  header .logo{background:var(--jung);font-weight:800;letter-spacing:1px;padding:6px 12px;border-radius:4px;font-size:18px}
+  header h1{font-size:16px;font-weight:600;margin:0}
+  header .sub{color:#9ca3af;font-size:12px;margin-left:auto}
+  .wrap{padding:18px 20px;max-width:1500px;margin:0 auto}
+  .toolbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--card);
+           border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
+  .modes{display:flex;gap:6px;background:#f1f1f3;border-radius:8px;padding:4px}
+  .modes button{border:0;background:transparent;padding:8px 14px;border-radius:6px;cursor:pointer;
+                font-weight:600;color:var(--muted);font-size:13px}
+  .modes button.active{background:#fff;color:var(--jung);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .mode-desc{font-size:12px;color:var(--muted);max-width:430px;line-height:1.4}
+  .spacer{flex:1}
+  .btn{border:1px solid var(--line);background:#fff;padding:8px 12px;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px}
+  .btn:hover{background:#f3f4f6}
+  .btn.primary{background:var(--jung);color:#fff;border-color:var(--jung)}
+  .btn.primary:hover{background:var(--jung-dark)}
+  .status{font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;background:var(--card);font-variant-numeric:tabular-nums}
+  .card{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px}
+  th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{background:var(--head);color:#fff;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;position:sticky;top:50px;z-index:5}
+  th.l,td.l{text-align:left}
+  thead .grp th{background:#3a3a3a;text-align:center;font-size:10px}
+  td input{width:100%;border:1px solid transparent;background:transparent;font:inherit;text-align:right;padding:4px 6px;border-radius:5px;font-variant-numeric:tabular-nums}
+  td.l input{text-align:left}
+  td input:focus{outline:none;border-color:var(--jung);background:#fff}
+  tr.row:hover td{background:#fafafa}
+  td.artigo input{font-weight:600;text-transform:uppercase}
+  .desc-cell{color:var(--muted);font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  .m{font-weight:700;border-radius:5px;padding:2px 6px;display:inline-block;min-width:46px}
+  .m.good{color:var(--good);background:#dcfce7}
+  .m.mid{color:var(--warn);background:#fef3c7}
+  .m.low{color:var(--bad);background:#fee2e2}
+  .pg-badge{display:inline-block;background:#eef;color:#3730a3;border-radius:4px;padding:1px 6px;font-weight:700;font-size:11px}
+  tfoot td{background:#fbfbfb;font-weight:700;border-top:2px solid #ddd}
+  .del{color:#bbb;cursor:pointer;font-weight:700}
+  .del:hover{color:var(--bad)}
+  .notfound input{color:var(--bad)}
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px}
+  @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+  h2{font-size:14px;margin:0;padding:12px 14px;background:var(--head);color:#fff;font-weight:600}
+  .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:#eee;color:#555;margin-left:6px}
+  .disc-table input{width:64px;text-align:center;border:1px solid var(--line);border-radius:6px;padding:5px}
+  .muted{color:var(--muted)}
+  .totbar{display:flex;gap:22px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
+          border-radius:10px;padding:14px 18px;margin-bottom:18px}
+  .totbar .item{display:flex;flex-direction:column}
+  .totbar .item b{font-size:20px}
+  .totbar .item span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .loader{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:50;font-weight:600;color:var(--muted)}
+  details summary{cursor:pointer;padding:10px 14px;font-weight:600;background:#f3f4f6;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="gate" style="position:fixed;inset:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;z-index:100;flex-direction:column;gap:16px;color:#fff;font-family:-apple-system,Segoe UI,Roboto,sans-serif">
+  <div style="background:#cc0000;font-weight:800;letter-spacing:1px;padding:8px 16px;border-radius:5px;font-size:22px">JUNG</div>
+  <div style="font-size:15px;color:#9ca3af">Mapa de Rentabilidade · acesso restrito</div>
+  <div style="display:flex;gap:8px">
+    <input id="gatePass" type="password" placeholder="Password" style="padding:11px 14px;border-radius:8px;border:1px solid #444;background:#2a2a2a;color:#fff;font-size:15px;width:220px">
+    <button id="gateBtn" style="padding:11px 18px;border-radius:8px;border:0;background:#cc0000;color:#fff;font-weight:700;cursor:pointer;font-size:15px">Entrar</button>
+  </div>
+  <div id="gateErr" style="color:#f87171;font-size:13px;height:16px"></div>
+</div>
+<div class="loader" id="loader" style="display:none">A carregar catálogo JUNG…</div>
+<header>
+  <div class="logo">JUNG</div>
+  <h1>Mapa de Rentabilidade</h1>
+  <div class="sub" id="catinfo">—</div>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="modes" id="modes">
+      <button data-mode="normal" class="active">Normal</button>
+      <button data-mode="extra">Normal c/ extra</button>
+      <button data-mode="gm">GM</button>
+      <button data-mode="gmesp">GM esp</button>
+    </div>
+    <div class="mode-desc" id="modeDesc"></div>
+    <div class="spacer"></div>
+    <button class="btn" id="addRow">+ Linha</button>
+    <button class="btn" id="clearAll">Limpar</button>
+    <button class="btn" id="exportCsv">Exportar CSV</button>
+  </div>
+
+  <div class="totbar" id="totbar"></div>
+
+  <div class="card">
+    <table id="grid">
+      <thead>
+        <tr class="grp">
+          <th class="l" colspan="3">Inserir dados</th>
+          <th colspan="2">Catálogo</th>
+          <th colspan="2">Instalador</th>
+          <th colspan="2">Distribuidor</th>
+          <th colspan="1">Rappel</th>
+          <th colspan="2">Custo</th>
+          <th colspan="3">Margens</th>
+          <th></th>
+        </tr>
+        <tr>
+          <th class="l">Artigo</th>
+          <th class="l">Descrição</th>
+          <th>Qtd</th>
+          <th>PG</th>
+          <th>PVP</th>
+          <th>Un. Líq. I</th>
+          <th>Total I</th>
+          <th>Un. Líq. D</th>
+          <th>Total D</th>
+          <th>Rappel €</th>
+          <th>Custo Un</th>
+          <th>Custo Tot</th>
+          <th>Mg I</th>
+          <th>Mg D</th>
+          <th>Mg R</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+      <tfoot id="foot"></tfoot>
+    </table>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Resumo por PG <span class="pill" id="pgPillMode"></span></h2>
+      <table id="pgSummary">
+        <thead>
+          <tr>
+            <th class="l">PG</th><th>Total I</th><th>Total D</th><th>Rappel</th><th>Custo</th>
+            <th>Mg I</th><th>Mg D</th><th>Mg R</th>
+          </tr>
+        </thead>
+        <tbody id="pgRows"></tbody>
+        <tfoot id="pgFoot"></tfoot>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Tabela de descontos (editável)</h2>
+      <div style="padding:6px 14px 0" class="muted" style="font-size:12px">Ajusta os descontos por PG e a app recalcula tudo ao vivo.</div>
+      <table class="disc-table">
+        <thead>
+          <tr><th class="l">PG</th><th>Inst.</th><th>Distrib.</th><th>Rappel</th><th>Extra Inst.</th><th>Extra Dist.</th><th>GM Dist.</th><th>GM JUNG</th></tr>
+        </thead>
+        <tbody id="discRows"></tbody>
+      </table>
+      <details style="margin:12px 14px">
+        <summary>Especiais (GM esp) — margem JUNG 50% / margem dist. 7%</summary>
+        <div class="muted" style="padding:10px 2px;font-size:12px">
+          58 artigos têm preço unitário especial (PU esp.). No modo <b>GM esp</b>, esses artigos usam o PU especial com margem JUNG de 50% para o preço de distribuidor.
+        </div>
+      </details>
+    </div>
+  </div>
+  <p class="muted" style="font-size:11px">Cálculos replicados do ficheiro "Tabela 2026 – análise de rentabilidade". Preços e custos: catálogo JUNG PT 2026 (14.681 artigos).</p>
+</div>
+
+<script>
+const SUPABASE_URL="https://gmowqbsmpsrercgxyjuy.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdtb3dxYnNtcHNyZXJjZ3h5anV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NTYxMDEsImV4cCI6MjA5NjQzMjEwMX0.d3w1o6McHG4DmgpDeIeQE47WCf11N3jeSoheGhestxo";
+
+const MODE_DESC={
+  normal:"PVP × (1 − desc). Preços de tabela diretos para instalador e distribuidor.",
+  extra:"Aplica desconto extra de instalador e de distribuidor por cima do desconto normal.",
+  gm:"Parte do custo: preço distribuidor = custo / (1 − GM JUNG); instalador = dist / (1 − GM dist).",
+  gmesp:"Como o GM, mas artigos com preço especial usam o PU especial com margem JUNG de 50%."
+};
+
+let CAT={};      // artigo -> {pvp,pg,custo}
+let DISC={};     // pg -> {instalador,...}
+let ESP={};      // artigo -> {pu_especial,descricao}
+let MODE="normal";
+let rows=[];     // {artigo,qtd,puEsp}
+
+const $=s=>document.querySelector(s);
+const eur=n=>(n==null||isNaN(n))?"":n.toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const pct=n=>(n==null||isNaN(n))?"":(n*100).toLocaleString("pt-PT",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+
+async function sb(path){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
+  return r.json();
+}
+
+async function loadAll(){
+  // descontos + especiais small; artigos large -> paginate
+  const [disc,esp]=await Promise.all([sb("rent_descontos?select=*"),sb("rent_especiais?select=*")]);
+  disc.forEach(d=>DISC[d.pg]=d);
+  esp.forEach(e=>ESP[e.artigo]=e);
+  let off=0;
+  while(true){
+    const part=await sb(`rent_artigos?select=artigo,pvp,pg,custo&limit=1000&offset=${off}`);
+    if(!part.length) break;
+    part.forEach(a=>CAT[a.artigo]={pvp:a.pvp,pg:a.pg,custo:a.custo});
+    off+=1000;
+    $("#loader").textContent=`A carregar catálogo JUNG… ${off}`;
+  }
+  $("#catinfo").textContent=`${Object.keys(CAT).length.toLocaleString("pt-PT")} artigos · ${Object.keys(DISC).length} PGs · ${Object.keys(ESP).length} especiais`;
+  $("#loader").style.display="none";
+}
+
+// ---- CÁLCULO (replica do Excel) ----
+function calcRow(r){
+  const art=(r.artigo||"").trim().toUpperCase();
+  const c=CAT[art];
+  if(!c) return {found:false,artigo:art};
+  const qtd=(+r.qtd)||0;
+  const pg=c.pg, pvp=c.pvp, custo=c.custo;
+  const d=DISC[pg]||{instalador:0,distribuidor:0,rappel:0,extra_instalador:0,extra_distribuidor:0,gm_distribuidor:0,gm_jung:0};
+  const ESProw=DISC["ESP"]||{gm_distribuidor:0.07,gm_jung:0.50};
+  let unI,unD;
+  if(MODE==="normal"){
+    unI=pvp*(1-(+d.instalador||0));
+    unD=pvp*(1-(+d.distribuidor||0));
+  }else if(MODE==="extra"){
+    unI=pvp*(1-(+d.instalador||0))*(1-(+d.extra_instalador||0));
+    unD=unI*(1-(+d.extra_distribuidor||0));
+  }else if(MODE==="gm"){
+    unD=custo/(1-(+d.gm_jung||0));
+    unI=unD/(1-(+d.gm_distribuidor||0));
+  }else{ // gmesp
+    const e=ESP[art];
+    if(e && e.pu_especial!=null){
+      unD=(+e.pu_especial)/(1-(+ESProw.gm_jung||0.50));
+      unI=unD/(1-(+ESProw.gm_distribuidor||0.07));
+    }else{
+      unD=custo/(1-(+d.gm_jung||0));
+      unI=unD/(1-(+d.gm_distribuidor||0));
+    }
+  }
+  const totI=unI*qtd, totD=unD*qtd, custoTot=custo*qtd;
+  const rappel=totD*(1-(+d.rappel||0));
+  const mI=totI? (totI-custoTot)/totI : null;
+  const mD=totD? (totD-custoTot)/totD : null;
+  const mR=rappel? (rappel-custoTot)/rappel : null;
+  return {found:true,artigo:art,pg,pvp,custo,qtd,unI,unD,totI,totD,custoTot,rappel,mI,mD,mR,
+          desc:(ESP[art]&&ESP[art].descricao)||""};
+}
+
+function mClass(m){ if(m==null)return""; if(m>=0.30)return"good"; if(m>=0.15)return"mid"; return"low"; }
+
+function render(){
+  const tb=$("#rows"); tb.innerHTML="";
+  let T={totI:0,totD:0,rappel:0,custoTot:0};
+  const pgAgg={};
+  rows.forEach((r,i)=>{
+    const res=calcRow(r);
+    const tr=document.createElement("tr"); tr.className="row"+(r.artigo&&!res.found?" notfound":"");
+    const found=res.found;
+    if(found){
+      T.totI+=res.totI;T.totD+=res.totD;T.rappel+=res.rappel;T.custoTot+=res.custoTot;
+      const a=pgAgg[res.pg]||(pgAgg[res.pg]={totI:0,totD:0,rappel:0,custoTot:0});
+      a.totI+=res.totI;a.totD+=res.totD;a.rappel+=res.rappel;a.custoTot+=res.custoTot;
+    }
+    tr.innerHTML=`
+      <td class="l artigo"><input value="${r.artigo||""}" data-i="${i}" data-f="artigo" placeholder="ex: A1520KIWW"></td>
+      <td class="l"><span class="desc-cell">${found?(res.desc||"—"):(r.artigo?"não encontrado":"")}</span></td>
+      <td><input value="${r.qtd||""}" data-i="${i}" data-f="qtd" inputmode="numeric" placeholder="0"></td>
+      <td>${found?`<span class="pg-badge">${res.pg}</span>`:""}</td>
+      <td>${found?eur(res.pvp):""}</td>
+      <td>${found?eur(res.unI):""}</td>
+      <td>${found?eur(res.totI):""}</td>
+      <td>${found?eur(res.unD):""}</td>
+      <td>${found?eur(res.totD):""}</td>
+      <td>${found?eur(res.rappel):""}</td>
+      <td>${found?eur(res.custo):""}</td>
+      <td>${found?eur(res.custoTot):""}</td>
+      <td>${found?`<span class="m ${mClass(res.mI)}">${pct(res.mI)}</span>`:""}</td>
+      <td>${found?`<span class="m ${mClass(res.mD)}">${pct(res.mD)}</span>`:""}</td>
+      <td>${found?`<span class="m ${mClass(res.mR)}">${pct(res.mR)}</span>`:""}</td>
+      <td><span class="del" data-del="${i}">✕</span></td>`;
+    tb.appendChild(tr);
+  });
+  // footer
+  const mI=T.totI?(T.totI-T.custoTot)/T.totI:null, mD=T.totD?(T.totD-T.custoTot)/T.totD:null, mR=T.rappel?(T.rappel-T.custoTot)/T.rappel:null;
+  $("#foot").innerHTML=`<tr><td class="l" colspan="6">TOTAL</td>
+     <td>${eur(T.totI)}</td><td></td><td>${eur(T.totD)}</td><td>${eur(T.rappel)}</td>
+     <td></td><td>${eur(T.custoTot)}</td>
+     <td><span class="m ${mClass(mI)}">${pct(mI)}</span></td>
+     <td><span class="m ${mClass(mD)}">${pct(mD)}</span></td>
+     <td><span class="m ${mClass(mR)}">${pct(mR)}</span></td><td></td></tr>`;
+  // totbar
+  $("#totbar").innerHTML=`
+    <div class="item"><b>${eur(T.totI)}</b><span>Total Instalador</span></div>
+    <div class="item"><b>${eur(T.totD)}</b><span>Total Distribuidor</span></div>
+    <div class="item"><b>${eur(T.rappel)}</b><span>Total Rappel</span></div>
+    <div class="item"><b>${eur(T.custoTot)}</b><span>Custo total</span></div>
+    <div class="item"><b class="m ${mClass(mI)}" style="font-size:20px">${pct(mI)}</b><span>Margem Instalador</span></div>
+    <div class="item"><b class="m ${mClass(mD)}" style="font-size:20px">${pct(mD)}</b><span>Margem Distribuidor</span></div>`;
+  renderPg(pgAgg,T);
+}
+
+function renderPg(pgAgg,T){
+  const order=["01","03","04","06","09","12","16","19","28","29","40","45"];
+  const keys=order.filter(k=>pgAgg[k]).concat(Object.keys(pgAgg).filter(k=>!order.includes(k)));
+  const body=$("#pgRows"); body.innerHTML="";
+  keys.forEach(k=>{
+    const a=pgAgg[k];
+    const mI=a.totI?(a.totI-a.custoTot)/a.totI:null,mD=a.totD?(a.totD-a.custoTot)/a.totD:null,mR=a.rappel?(a.rappel-a.custoTot)/a.rappel:null;
+    body.insertAdjacentHTML("beforeend",`<tr><td class="l"><span class="pg-badge">${k}</span></td>
+      <td>${eur(a.totI)}</td><td>${eur(a.totD)}</td><td>${eur(a.rappel)}</td><td>${eur(a.custoTot)}</td>
+      <td><span class="m ${mClass(mI)}">${pct(mI)}</span></td>
+      <td><span class="m ${mClass(mD)}">${pct(mD)}</span></td>
+      <td><span class="m ${mClass(mR)}">${pct(mR)}</span></td></tr>`);
+  });
+  const mI=T.totI?(T.totI-T.custoTot)/T.totI:null,mD=T.totD?(T.totD-T.custoTot)/T.totD:null,mR=T.rappel?(T.rappel-T.custoTot)/T.rappel:null;
+  $("#pgFoot").innerHTML=`<tr><td class="l">TOTAL</td><td>${eur(T.totI)}</td><td>${eur(T.totD)}</td><td>${eur(T.rappel)}</td><td>${eur(T.custoTot)}</td>
+     <td><span class="m ${mClass(mI)}">${pct(mI)}</span></td><td><span class="m ${mClass(mD)}">${pct(mD)}</span></td><td><span class="m ${mClass(mR)}">${pct(mR)}</span></td></tr>`;
+  $("#pgPillMode").textContent=MODE;
+}
+
+function renderDisc(){
+  const order=["01","03","04","06","09","12","16","19","28","29","40","45"];
+  const body=$("#discRows"); body.innerHTML="";
+  order.forEach(pg=>{
+    const d=DISC[pg]; if(!d)return;
+    const f=(k)=>`<td><input value="${((+d[k]||0)*100)}" data-pg="${pg}" data-k="${k}">%</td>`;
+    body.insertAdjacentHTML("beforeend",`<tr><td class="l"><span class="pg-badge">${pg}</span></td>
+      ${f("instalador")}${f("distribuidor")}${f("rappel")}${f("extra_instalador")}${f("extra_distribuidor")}${f("gm_distribuidor")}${f("gm_jung")}</tr>`);
+  });
+}
+
+// ---- eventos ----
+document.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.f!==undefined && t.dataset.i!==undefined){
+    const i=+t.dataset.i; rows[i][t.dataset.f]=t.value;
+    if(t.dataset.f==="artigo" && i===rows.length-1 && t.value.trim()) rows.push({artigo:"",qtd:"",puEsp:""});
+    render(); // re-render keeps focus loss; refocus
+    refocus(i,t.dataset.f,t.selectionStart);
+  }
+  if(t.dataset.pg!==undefined){
+    DISC[t.dataset.pg][t.dataset.k]=(+t.value||0)/100;
+    render();
+  }
+});
+function refocus(i,f,pos){
+  const el=document.querySelector(`input[data-i="${i}"][data-f="${f}"]`);
+  if(el){el.focus(); try{el.setSelectionRange(pos,pos);}catch(_){}}
+}
+document.addEventListener("click",e=>{
+  if(e.target.dataset.del!==undefined){
+    rows.splice(+e.target.dataset.del,1);
+    if(!rows.length)rows.push({artigo:"",qtd:"",puEsp:""});
+    render();
+  }
+});
+$("#modes").addEventListener("click",e=>{
+  if(e.target.dataset.mode){
+    MODE=e.target.dataset.mode;
+    document.querySelectorAll("#modes button").forEach(b=>b.classList.toggle("active",b===e.target));
+    $("#modeDesc").textContent=MODE_DESC[MODE];
+    render();
+  }
+});
+$("#addRow").onclick=()=>{rows.push({artigo:"",qtd:"",puEsp:""});render();};
+$("#clearAll").onclick=()=>{rows=[{artigo:"",qtd:"",puEsp:""}];render();};
+$("#exportCsv").onclick=()=>{
+  let csv="Artigo;Descricao;Qtd;PG;PVP;UnLiqI;TotalI;UnLiqD;TotalD;Rappel;CustoUn;CustoTot;MgI;MgD;MgR\n";
+  rows.forEach(r=>{const x=calcRow(r); if(x.found)
+    csv+=[x.artigo,x.desc,x.qtd,x.pg,x.pvp,x.unI,x.unD?x.unD:"",x.totI,x.totD,x.rappel,x.custo,x.custoTot,x.mI,x.mD,x.mR].join(";")+"\n";});
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="rentabilidade_"+MODE+".csv";a.click();
+};
+
+const PASSWORD="jung2026";  // muda aqui se quiseres outra
+async function startApp(){
+  $("#gate").style.display="none";
+  $("#loader").style.display="flex";
+  $("#modeDesc").textContent=MODE_DESC.normal;
+  rows=[{artigo:"",qtd:"",puEsp:""}];
+  await loadAll();
+  renderDisc();
+  render();
+}
+function tryGate(){
+  if($("#gatePass").value===PASSWORD){ sessionStorage.setItem("jung_ok","1"); startApp(); }
+  else { $("#gateErr").textContent="Password incorreta."; }
+}
+$("#gateBtn").onclick=tryGate;
+$("#gatePass").addEventListener("keydown",e=>{if(e.key==="Enter")tryGate();});
+if(sessionStorage.getItem("jung_ok")==="1"){ startApp(); } else { $("#gatePass").focus(); }
+</script>
+</body>
+</html>
