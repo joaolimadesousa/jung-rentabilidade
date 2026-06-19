@@ -195,24 +195,38 @@ const $=s=>document.querySelector(s);
 const eur=n=>(n==null||isNaN(n))?"":n.toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
 const pct=n=>(n==null||isNaN(n))?"":(n*100).toLocaleString("pt-PT",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
 
-async function sb(path){
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}});
+async function sb(path,extraHeaders){
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{headers:Object.assign({apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY},extraHeaders||{})});
   return r.json();
 }
 
 async function loadAll(){
-  // descontos + especiais small; artigos large -> paginate
+  $("#loader").textContent="A carregar catálogo JUNG…";
+  // descontos + especiais (pequenos)
   const [disc,esp]=await Promise.all([sb("rent_descontos?select=*"),sb("rent_especiais?select=*")]);
   disc.forEach(d=>DISC[d.pg]=d);
   esp.forEach(e=>ESP[e.artigo]=e);
-  let off=0;
-  while(true){
-    const part=await sb(`rent_artigos?select=artigo,pvp,pg,custo&limit=1000&offset=${off}`);
-    if(!part.length) break;
-    part.forEach(a=>CAT[a.artigo]={pvp:a.pvp,pg:a.pg,custo:a.custo});
-    off+=1000;
-    $("#loader").textContent=`A carregar catálogo JUNG… ${off}`;
+
+  // artigos: descobrir o total e disparar TODAS as páginas em paralelo (1 ronda em vez de 15 sequenciais)
+  const PAGE=1000;
+  // 1º pedido pede também a contagem total via header Content-Range
+  const r0=await fetch(`${SUPABASE_URL}/rest/v1/rent_artigos?select=artigo,pvp,pg,custo&limit=${PAGE}&offset=0`,
+    {headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY,Prefer:"count=exact"}});
+  const range=r0.headers.get("content-range")||"";          // ex: "0-999/14681"
+  const total=parseInt((range.split("/")[1]||"0"),10)||PAGE;
+  (await r0.json()).forEach(a=>CAT[a.artigo]={pvp:a.pvp,pg:a.pg,custo:a.custo});
+
+  // restantes páginas em paralelo
+  const tasks=[];
+  for(let off=PAGE; off<total; off+=PAGE){
+    tasks.push(sb(`rent_artigos?select=artigo,pvp,pg,custo&limit=${PAGE}&offset=${off}`));
   }
+  let done=1;
+  await Promise.all(tasks.map(p=>p.then(part=>{
+    part.forEach(a=>CAT[a.artigo]={pvp:a.pvp,pg:a.pg,custo:a.custo});
+    done++; $("#loader").textContent=`A carregar catálogo JUNG… ${Math.round(done/(tasks.length+1)*100)}%`;
+  })));
+
   $("#catinfo").textContent=`${Object.keys(CAT).length.toLocaleString("pt-PT")} artigos · ${Object.keys(DISC).length} PGs · ${Object.keys(ESP).length} especiais`;
   $("#loader").style.display="none";
 }
