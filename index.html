@@ -205,7 +205,7 @@
       <div style="overflow-x:auto">
         <table class="disc-table">
           <thead>
-            <tr><th class="l">PG</th><th>Inst.</th><th>Distr.</th><th>Rappel</th><th>Ex.I</th><th>Ex.D</th><th>GM D</th><th>GM J</th></tr>
+            <tr><th class="l">PG</th><th>Ex.PVP</th><th>Inst.</th><th>Distr.</th><th>Rappel</th><th>Ex.I</th><th>Ex.D</th><th>GM D</th><th>GM J</th></tr>
           </thead>
           <tbody id="discRows"></tbody>
         </table>
@@ -279,8 +279,9 @@ function calcRow(r){
   const d=DISC[pg]||{instalador:0,distribuidor:0,rappel:0,extra_instalador:0,extra_distribuidor:0,gm_distribuidor:0,gm_jung:0};
   const ESProw=DISC["ESP"]||{gm_distribuidor:0.07,gm_jung:0.50};
   let unI,unD;
-  if(MODE==="normal"){unI=pvp*(1-(+d.instalador||0));unD=pvp*(1-(+d.distribuidor||0));}
-  else if(MODE==="extra"){unI=pvp*(1-(+d.instalador||0))*(1-(+d.extra_instalador||0));unD=unI*(1-(+d.extra_distribuidor||0));}
+  const pvpBase=pvp*(1-(+d.extra_pvp||0));   // Ex.PVP: desconto extra sobre o PVP de partida
+  if(MODE==="normal"){unI=pvpBase*(1-(+d.instalador||0));unD=pvpBase*(1-(+d.distribuidor||0));}
+  else if(MODE==="extra"){unI=pvpBase*(1-(+d.instalador||0))*(1-(+d.extra_instalador||0));unD=unI*(1-(+d.extra_distribuidor||0));}
   else if(MODE==="gm"){unD=custo/(1-(+d.gm_jung||0));unI=unD/(1-(+d.gm_distribuidor||0));}
   else{const e=ESP[art];
     if(e&&e.pu_especial!=null){unD=(+e.pu_especial)/(1-(+ESProw.gm_jung||0.50));unI=unD/(1-(+ESProw.gm_distribuidor||0.07));}
@@ -355,7 +356,7 @@ function renderDisc(){
   order.forEach(pg=>{const d=DISC[pg];if(!d)return;
     const f=k=>`<td><input value="${Math.round((+d[k]||0)*1000)/10}" data-pg="${pg}" data-k="${k}"></td>`;
     body.insertAdjacentHTML("beforeend",`<tr><td class="l"><span class="pg-badge">${pg}</span></td>
-      ${f("instalador")}${f("distribuidor")}${f("rappel")}${f("extra_instalador")}${f("extra_distribuidor")}${f("gm_distribuidor")}${f("gm_jung")}</tr>`);});
+      ${f("extra_pvp")}${f("instalador")}${f("distribuidor")}${f("rappel")}${f("extra_instalador")}${f("extra_distribuidor")}${f("gm_distribuidor")}${f("gm_jung")}</tr>`);});
 }
 
 // eventos input
